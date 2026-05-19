@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMING
+  CONFIRMED
+  REJECTED
+  DUPLICATE
+}
+
+enum TradingPlatform {
+  MT4
+  MT5
+}
+
+enum TradingAccountStatus {
+  DISCONNECTED
+  PENDING
+  CONNECTED
+  BLOCKED
+}
+
+enum SignalAction {
+  BUY
+  SELL
+  WAIT
+  CLOSE
+}
+
+model User {
+  id              String           @id @default(cuid())
+  name            String
+  email           String           @unique
+  passwordHash    String
+  role            Role             @default(USER)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  subscriptions   Subscription[]
+  payments        Payment[]
+  tradingAccounts TradingAccount[]
+  riskProfile     RiskProfile?
+  auditLogs       AuditLog[]
+}
+
+model Plan {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  priceUsd      Float
+  maxMarkets    Int
+  maxRiskPct    Float
+  maxDailyTrades Int           @default(10)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id        String             @id @default(cuid())
+  userId    String
+  planId    String
+  status    SubscriptionStatus @default(PENDING)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime           @default(now())
+  user      User               @relation(fields: [userId], references: [id])
+  plan      Plan               @relation(fields: [planId], references: [id])
+  payments  Payment[]
+}
+
+model CryptoWallet {
+  id        String    @id @default(cuid())
+  coin      String
+  network   String
+  address   String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  payments  Payment[]
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  userId         String
+  subscriptionId String?
+  walletId       String
+  amountUsd      Float
+  coin           String
+  network        String
+  txid           String?       @unique
+  status         PaymentStatus @default(PENDING)
+  confirmations  Int           @default(0)
+  verifiedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id])
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  wallet         CryptoWallet  @relation(fields: [walletId], references: [id])
+}
+
+model TradingAccount {
+  id              String               @id @default(cuid())
+  userId          String
+  platform        TradingPlatform
+  brokerServer    String
+  loginId         String
+  status          TradingAccountStatus @default(PENDING)
+  bridgeTokenHash String?
+  lastHeartbeatAt DateTime?
+  createdAt       DateTime             @default(now())
+  user            User                 @relation(fields: [userId], references: [id])
+}
+
+model RiskProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  riskPerTradePct        Float    @default(1)
+  maxDailyLossPct        Float    @default(5)
+  maxDailyTrades         Int      @default(10)
+  minBalanceUsd          Float    @default(100)
+  newsProtectionEnabled  Boolean  @default(true)
+  tradingStart           String   @default("09:00")
+  tradingEnd             String   @default("18:00")
+  botEnabled             Boolean  @default(false)
+  updatedAt              DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id])
+}
+
+model TradeSignal {
+  id             String       @id @default(cuid())
+  symbol         String
+  action         SignalAction
+  confidencePct  Float
+  entry          Float?
+  stopLoss       Float?
+  takeProfit     Float?
+  reason         String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  ip        String?
+  metadata  String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}

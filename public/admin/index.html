@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VELTRIX Admin</title>
+  <style>
+    body{margin:0;font-family:Tahoma,Arial;background:#07101f;color:#eef4ff} .wrap{max-width:1100px;margin:auto;padding:28px}.card{background:#111b31;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:18px;margin:14px 0}input,button{padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#081225;color:#fff}button{cursor:pointer;background:#19f5ff;color:#00111c;font-weight:700}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid rgba(255,255,255,.1);padding:10px;text-align:right}.muted{color:#9aa9c7}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}table{font-size:12px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>لوحة Admin — VELTRIX</h1>
+  <div class="card">
+    <h3>تسجيل دخول الأدمن</h3>
+    <input id="email" placeholder="admin@veltrix.local" value="admin@veltrix.local" />
+    <input id="password" type="password" placeholder="Password" value="ChangeMe123!" />
+    <button onclick="login()">دخول</button>
+    <p class="muted">غيّر بيانات الأدمن من ملف .env قبل الإنتاج.</p>
+  </div>
+  <div id="app" style="display:none">
+    <div class="grid" id="stats"></div>
+    <div class="card"><h3>المستخدمون</h3><div style="overflow:auto"><table id="users"></table></div></div>
+    <div class="card"><h3>المدفوعات</h3><div style="overflow:auto"><table id="payments"></table></div></div>
+  </div>
+</div>
+<script>
+let token='';
+async function api(path, options={}){const r=await fetch(path,{...options,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,...options.headers}});return r.json()}
+async function login(){const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email.value,password:password.value})});const d=await r.json();if(!d.token)return alert(d.error||'Login failed');token=d.token;document.getElementById('app').style.display='block';load();}
+async function load(){const s=await api('/api/admin/stats');stats.innerHTML=Object.entries(s).map(([k,v])=>`<div class="card"><span class="muted">${k}</span><h2>${v}</h2></div>`).join('');const u=await api('/api/admin/users');users.innerHTML='<tr><th>الاسم</th><th>البريد</th><th>الدور</th><th>الحالة</th></tr>'+u.users.map(x=>`<tr><td>${x.name}</td><td>${x.email}</td><td>${x.role}</td><td>${x.isActive?'Active':'Disabled'}</td></tr>`).join('');const p=await api('/api/admin/payments');payments.innerHTML='<tr><th>المستخدم</th><th>المبلغ</th><th>الشبكة</th><th>الحالة</th><th>TXID</th></tr>'+p.payments.map(x=>`<tr><td>${x.user.email}</td><td>${x.amountUsd}$</td><td>${x.coin}/${x.network}</td><td>${x.status}</td><td>${x.txid||''}</td></tr>`).join('')}
+</script>
+</body>
+</html>
